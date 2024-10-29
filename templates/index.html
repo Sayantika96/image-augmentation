@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Augmentation</title>
+</head>
+<body>
+    <h1>Upload an Image for Augmentation</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required>
+        <button type="submit">Upload and Augment</button>
+    </form>
+
+    {% if uploaded_image and augmented_image %}
+        <h2>Uploaded Image:</h2>
+        <img src="/static/uploads/{{ uploaded_image }}" alt="Uploaded Image" width="300">
+
+        <h2>Augmented Image:</h2>
+        <img src="/static/uploads/{{ augmented_image }}" alt="Augmented Image" width="300">
+    {% endif %}
+</body>
+</html>
