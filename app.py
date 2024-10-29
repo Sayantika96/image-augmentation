@@ -13,34 +13,76 @@ UPLOAD_FOLDER = 'static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Define augmentation transforms
-augmented_transform = transforms.Compose([
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(10),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
-    transforms.RandomResizedCrop((128, 128)),
-    transforms.ToTensor()
-])
+# Define augmented transformations
+augmented_transformations = [
+    transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.RandomVerticalFlip(),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.RandomRotation(30),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.ColorJitter(brightness=0.5),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.ColorJitter(contrast=0.5),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.ColorJitter(saturation=0.5),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.ColorJitter(hue=0.5),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.RandomResizedCrop((128, 128), scale=(0.5, 1.0)),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.RandomAffine(degrees=15),
+        transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.RandomGrayscale(p=0.2),
+        transforms.ToTensor()
+    ])
+]
 
 # Helper function to apply transformations
 def apply_augmentation(image_path):
     # Open the image
     image = Image.open(image_path)
-
-    # Apply the augmentation
-    augmented_image = augmented_transform(image)
-
-    # Convert the tensor back to PIL image for saving
-    augmented_image = transforms.ToPILImage()(augmented_image)
-
-    # Generate a unique filename for the augmented image
-    output_filename = f"augmented_{uuid.uuid4().hex}.jpg"
-    output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+    augmented_images = []
+    output_filenames = []
     
-    # Save the augmented image
-    augmented_image.save(output_path)
-    
-    return output_filename
+    # Apply each augmentation
+    for idx, transform in enumerate(augmented_transformations):
+        # Apply the transformation
+        augmented_image = transform(image)
+
+        # Convert the tensor back to PIL image for saving
+        augmented_image = transforms.ToPILImage()(augmented_image)
+
+        # Generate a unique filename for the augmented image
+        output_filename = f"augmented_{uuid.uuid4().hex}_{idx}.jpg"
+        output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+        
+        # Save the augmented image
+        augmented_image.save(output_path)
+        
+        # Store the output filename
+        output_filenames.append(output_filename)
+
+    return output_filenames
 
 # Route for the homepage with upload form
 @app.route('/', methods=['GET', 'POST'])
@@ -62,10 +104,10 @@ def index():
         file.save(file_path)
         
         # Apply augmentation to the uploaded image
-        augmented_filename = apply_augmentation(file_path)
+        augmented_filenames = apply_augmentation(file_path)
 
-        # Render the augmented image in the response
-        return render_template('index.html', uploaded_image=filename, augmented_image=augmented_filename)
+        # Render the uploaded and augmented images in the response
+        return render_template('index.html', uploaded_image=filename, augmented_images=augmented_filenames)
 
     # Render the upload form on GET request
     return render_template('index.html')

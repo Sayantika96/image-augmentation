@@ -3,22 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Augmentation</title>
+    <title>Image Augmentation App</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        h1 {
+            margin-top: 20px;
+            text-align: center;
+            color: #343a40;
+        }
+
+        .container {
+            margin-top: 30px;
+            max-width: 800px;
+        }
+
+        .card {
+            margin-top: 20px;
+        }
+
+        img {
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Upload an Image for Augmentation</h1>
 
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
-        <button type="submit">Upload and Augment</button>
-    </form>
+    <div class="container">
+        <h1>Image Augmentation App</h1>
 
-    {% if uploaded_image and augmented_image %}
-        <h2>Uploaded Image:</h2>
-        <img src="/static/uploads/{{ uploaded_image }}" alt="Uploaded Image" width="300">
+        <!-- Upload Form -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select an image to upload</label>
+                        <input type="file" name="file" class="form-control" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Upload and Augment</button>
+                </form>
+            </div>
+        </div>
 
-        <h2>Augmented Image:</h2>
-        <img src="/static/uploads/{{ augmented_image }}" alt="Augmented Image" width="300">
-    {% endif %}
+        <!-- Uploaded Image Display -->
+        {% if uploaded_image %}
+        <div class="card shadow-sm mt-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">Uploaded Image</h5>
+                <img src="/static/uploads/{{ uploaded_image }}" alt="Uploaded Image" class="img-fluid" width="300">
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Augmented Images Display -->
+        {% if augmented_images %}
+        <div class="card shadow-sm mt-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">Augmented Images</h5>
+                <div class="row">
+                    {% for aug_image in augmented_images %}
+                    <div class="col-md-4 col-sm-6 mt-3">
+                        <img src="/static/uploads/{{ aug_image }}" alt="Augmented Image" class="img-fluid">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
