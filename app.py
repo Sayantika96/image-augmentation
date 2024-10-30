@@ -1,23 +1,36 @@
 from flask import Flask, request, render_template, send_from_directory
 import os
 from PIL import Image
+import imageio
 import torch
 from torchvision import transforms
 import uuid
 
-# Initialize Flask app
 app = Flask(__name__)
 
-# Define paths
 UPLOAD_FOLDER = 'static/uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Define augmented transformations
+class AddGaussianNoise:
+    def __init__(self, mean=0., std=1.):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, tensor):
+        noise = torch.randn(tensor.size()) * self.std + self.mean
+        noisy_tensor = tensor + noise
+        return torch.clamp(noisy_tensor, 0., 1.)
+
 augmented_transformations = [
     transforms.Compose([
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor()
+    ]),
+    transforms.Compose([
+        transforms.Resize((128, 128)),
+        transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+        transforms.ToTensor(),
     ]),
     transforms.Compose([
         transforms.RandomVerticalFlip(),
@@ -28,19 +41,12 @@ augmented_transformations = [
         transforms.ToTensor()
     ]),
     transforms.Compose([
+        transforms.Resize((128, 128)),
+        transforms.ToTensor(),
+        AddGaussianNoise(mean=0., std=0.1),
+    ]),
+    transforms.Compose([
         transforms.ColorJitter(brightness=0.5),
-        transforms.ToTensor()
-    ]),
-    transforms.Compose([
-        transforms.ColorJitter(contrast=0.5),
-        transforms.ToTensor()
-    ]),
-    transforms.Compose([
-        transforms.ColorJitter(saturation=0.5),
-        transforms.ToTensor()
-    ]),
-    transforms.Compose([
-        transforms.ColorJitter(hue=0.5),
         transforms.ToTensor()
     ]),
     transforms.Compose([
@@ -52,67 +58,76 @@ augmented_transformations = [
         transforms.ToTensor()
     ]),
     transforms.Compose([
-        transforms.RandomGrayscale(p=0.2),
+        transforms.RandomGrayscale(p=0.3),
         transforms.ToTensor()
     ])
 ]
 
-# Helper function to apply transformations
 def apply_augmentation(image_path):
-    # Open the image
-    image = Image.open(image_path)
-    augmented_images = []
-    output_filenames = []
-    
-    # Apply each augmentation
-    for idx, transform in enumerate(augmented_transformations):
-        # Apply the transformation
-        augmented_image = transform(image)
+    # Check if the input image is a GIF
+    if image_path.endswith('.gif'):
+        reader = imageio.get_reader(image_path)
+        augmented_images = []
 
-        # Convert the tensor back to PIL image for saving
-        augmented_image = transforms.ToPILImage()(augmented_image)
+        for frame in reader:
+            # Convert each frame to PIL Image
+            image = Image.fromarray(frame)
+            image = image.convert('RGB')  # Ensure the image is in RGB mode
+            for idx, transform in enumerate(augmented_transformations):
+                augmented_image = transform(image)
 
-        # Generate a unique filename for the augmented image
-        output_filename = f"augmented_{uuid.uuid4().hex}_{idx}.jpg"
-        output_path = os.path.join(UPLOAD_FOLDER, output_filename)
-        
-        # Save the augmented image
-        augmented_image.save(output_path)
-        
-        # Store the output filename
-        output_filenames.append(output_filename)
+                # Convert to PIL Image and ensure it's in RGB mode
+                augmented_image = transforms.ToPILImage()(augmented_image).convert('RGB')
 
-    return output_filenames
+                output_filename = f"augmented_{uuid.uuid4().hex}_{idx}.jpg"
+                output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+                augmented_image.save(output_path)
 
-# Route for the homepage with upload form
+                augmented_images.append(output_filename)
+
+        return augmented_images
+    else:
+        # Handle single image augmentation as before
+        image = Image.open(image_path)
+        image = image.convert('RGB')  # Ensure the image is in RGB mode
+        augmented_images = []
+        output_filenames = []
+        for idx, transform in enumerate(augmented_transformations):
+            augmented_image = transform(image)
+
+            # Convert to PIL Image and ensure it's in RGB mode
+            augmented_image = transforms.ToPILImage()(augmented_image).convert('RGB')
+
+            output_filename = f"augmented_{uuid.uuid4().hex}_{idx}.jpg"
+            output_path = os.path.join(UPLOAD_FOLDER, output_filename)
+
+            augmented_image.save(output_path)
+            output_filenames.append(output_filename)
+
+        return output_filenames
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        # Check if an image was uploaded
         if 'file' not in request.files:
             return "No file part in the request", 400
         
         file = request.files['file']
         
-        # Check if the file has a valid name
         if file.filename == '':
             return "No selected file", 400
         
-        # Save the uploaded file
         filename = f"{uuid.uuid4().hex}_{file.filename}"
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         file.save(file_path)
         
-        # Apply augmentation to the uploaded image
         augmented_filenames = apply_augmentation(file_path)
 
-        # Render the uploaded and augmented images in the response
         return render_template('index.html', uploaded_image=filename, augmented_images=augmented_filenames)
 
-    # Render the upload form on GET request
     return render_template('index.html')
 
-# Route to serve uploaded images
 @app.route('/static/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
